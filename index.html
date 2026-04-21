@@ -174,9 +174,7 @@
   </div>
   <div class="week-nav">
     <button id="btnPrev">&#8249;</button>
-    <input type="week" id="weekPicker" style="background:rgba(255,255,255,.12);border:none;color:#fff;
-      border-radius:8px;padding:4px 8px;font-family:inherit;font-size:12px;cursor:pointer;
-      outline:none;min-width:140px;text-align:center;color-scheme:dark;">
+    <span id="weekLabel" style="color:#fff;font-size:13px;font-weight:500;min-width:120px;text-align:center;">—</span>
     <button id="btnNext">&#8250;</button>
   </div>
   <div class="sync-pill">
@@ -580,23 +578,33 @@ function weekStart(off) { return fmtFull(getMonday(off)); }
 function rKey(type, id, date, hour) { return type + '__' + id + '__' + date + '__' + hour; }
 
 function updateWeekLabel() {
-  const d = getWeekDates(weekOffset);
   const mon = getMonday(weekOffset);
-  const jan1 = new Date(mon.getFullYear(), 0, 1);
-  const wn   = Math.ceil((((mon - jan1) / 86400000) + jan1.getDay() + 1) / 7);
-  const wStr = mon.getFullYear() + '-W' + String(wn).padStart(2, '0');
-  const picker = document.getElementById('weekPicker');
-  if (picker) picker.value = wStr;
-}
-
-function jumpToWeek(wval) {
-  if (!wval) return;
-  const [year, wnum] = wval.split('-W').map(Number);
-  const jan4 = new Date(year, 0, 4);
-  const ws   = new Date(jan4);
-  ws.setDate(jan4.getDate() - (jan4.getDay()||7) + 1 + (wnum-1)*7);
-  const diff = Math.round((ws - getMonday(0)) / (7*24*60*60*1000));
-  goToWeek(diff);
+  const month = mon.getMonth() + 1;
+  // 해당 월의 첫 번째 월요일 기준으로 몇 번째 주인지 계산
+  const firstDay = new Date(mon.getFullYear(), mon.getMonth(), 1);
+  // 월의 첫 주 월요일
+  const firstMon = new Date(firstDay);
+  const fd = firstDay.getDay();
+  firstMon.setDate(firstDay.getDate() + (fd === 0 ? 1 : fd === 1 ? 0 : 8 - fd));
+  // mon이 firstMon보다 앞이면 전달 마지막 주
+  let weekNum;
+  if (mon < firstMon) {
+    // 전달 기준으로 계산
+    const prevMonth = new Date(mon.getFullYear(), mon.getMonth(), 0); // 전달 말일
+    const prevFirst = new Date(prevMonth.getFullYear(), prevMonth.getMonth(), 1);
+    const pfd = prevFirst.getDay();
+    const prevFirstMon = new Date(prevFirst);
+    prevFirstMon.setDate(prevFirst.getDate() + (pfd===0?1:pfd===1?0:8-pfd));
+    weekNum = Math.floor((mon - prevFirstMon) / (7*24*60*60*1000)) + 1;
+    const lbl = document.getElementById('weekLabel');
+    const suffix = weekOffset === 0 ? ' (이번 주)' : weekOffset === 1 ? ' (다음 주)' : weekOffset === -1 ? ' (지난 주)' : '';
+    if (lbl) lbl.textContent = (prevMonth.getMonth()+1) + '월 ' + weekNum + '주차' + suffix;
+    return;
+  }
+  weekNum = Math.floor((mon - firstMon) / (7*24*60*60*1000)) + 1;
+  const suffix = weekOffset === 0 ? ' (이번 주)' : weekOffset === 1 ? ' (다음 주)' : weekOffset === -1 ? ' (지난 주)' : '';
+  const lbl = document.getElementById('weekLabel');
+  if (lbl) lbl.textContent = month + '월 ' + weekNum + '주차' + suffix;
 }
 
 // ═══════════════════════════════════════
@@ -1100,7 +1108,6 @@ window.addEventListener('DOMContentLoaded', () => {
   // 헤더
   document.getElementById('btnPrev').addEventListener('click',    () => changeWeek(-1));
   document.getElementById('btnNext').addEventListener('click',    () => changeWeek(1));
-  document.getElementById('weekPicker').addEventListener('change', function() { jumpToWeek(this.value); });
   document.getElementById('saveBtn').addEventListener('click',    () => flushQueue());
 
   // 탭
